@@ -280,6 +280,12 @@ libsigrok_la_SOURCES += \
 	src/hardware/gwinstek-gds-800/protocol.c \
 	src/hardware/gwinstek-gds-800/api.c
 endif
+if HW_GWINSTEK_PPS_PSP
+libsigrok_la_SOURCES += \
+	src/hardware/gwinstek-pps-psp/protocol.h \
+	src/hardware/gwinstek-pps-psp/protocol.c \
+	src/hardware/gwinstek-pps-psp/api.c
+endif
 if HW_HAMEG_HMO
 libsigrok_la_SOURCES += \
 	src/hardware/hameg-hmo/protocol.h \
