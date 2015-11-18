@@ -346,12 +346,12 @@ libsigrok_la_SOURCES += \
 	src/hardware/manson-hcs-3xxx/protocol.c \
 	src/hardware/manson-hcs-3xxx/api.c
 endif
-if HW_GWINSTEK_PSP
-libsigrok_la_SOURCES += \
-	src/hardware/gwinstek-psp/protocol.h \
-	src/hardware/gwinstek-psp/protocol.c \
-	src/hardware/gwinstek-psp/api.c
-endif
+#if HW_GWINSTEK_PSP
+#libsigrok_la_SOURCES += \
+#	src/hardware/gwinstek-psp/protocol.h \
+#	src/hardware/gwinstek-psp/protocol.c \
+#	src/hardware/gwinstek-psp/api.c
+#endif
 if HW_MAYNUO_M97
 libsigrok_la_SOURCES += \
 	src/hardware/maynuo-m97/protocol.h \
