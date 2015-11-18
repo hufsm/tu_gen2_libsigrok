@@ -137,25 +137,25 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	sdi->priv = devc;
 
   int ret = 0;
+  int read_reply = 0;
   ret = gw_instek_psp_send_cmd(serial, "L\r");
-  fprintf(stdout, "gw_instek_psp_send_cmd: %i\n", ret);
-  int i = 0;
+  //fprintf(stdout, "gw_instek_psp_send_cmd: %i\n", ret);
 
-  scanf(stdin);
-  fprintf(stdout, "Asking device...\n", ret);
-  gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply));
-  fprintf(stdout, "gw_instek_psp_read_reply %s\n", reply);
+  fprintf(stdout, "Asking device...\n");
+  read_reply = gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply));
 
 	/* Get current voltage, current, status, limits. */
-	/*if((gw_instek_psp_send_cmd(serial, "L\r") < 0) ||
-    (gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply)) < 0))
-		goto exit_err;
+	//if((gw_instek_psp_send_cmd(serial, "L\r") < 0) ||
+  //  (gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply)) < 0))
+	//	goto exit_err;
+  fprintf(stdout, "Device said:  %s\n", reply);
+  fprintf(stdout, "       code:  %i\n", read_reply);
 	tokens = g_strsplit((const gchar *)&reply, "\r", 1);
 	if (gw_instek_psp_parse_volt_curr_mode(sdi, tokens) < 0) {
 		g_strfreev(tokens);
 		goto exit_err;
-	}*/
-	//g_strfreev(tokens);
+	}
+	g_strfreev(tokens);
 
 	drvc->instances = g_slist_append(drvc->instances, sdi);
 	devices = g_slist_append(devices, sdi);
@@ -265,27 +265,65 @@ static int config_set(uint32_t key, GVariant *data,
 static int config_list(uint32_t key, GVariant **data,
 	const struct sr_dev_inst *sdi, const struct sr_channel_group *cg)
 {
-	int ret;
+	struct dev_context *devc;
+	GVariant *gvar;
+	GVariantBuilder gvb;
+	double dval;
+	int idx;
 
-	(void)sdi;
-	(void)data;
-	(void)cg;
   fprintf(stdout, "%s\n", __FUNCTION__);
+	(void)cg;
 
-	ret = SR_OK;
-	switch (key) {
-	case SR_CONF_SCAN_OPTIONS:
-    fprintf(stdout, "SR_CONF_SCAN_OPTIONS %s\n", __FUNCTION__);
-
+	/* Always available (with or without sdi). */
+	if (key == SR_CONF_SCAN_OPTIONS) {
 		*data = g_variant_new_fixed_array(G_VARIANT_TYPE_UINT32,
 			scanopts, ARRAY_SIZE(scanopts), sizeof(uint32_t));
-    fprintf(stdout, "SR_CONF_SCAN_OPTIONS %s\n", __FUNCTION__);
 		return SR_OK;
-	case SR_CONF_DEVICE_OPTIONS:
-    fprintf(stdout, "SR_CONF_DEVICE_OPTIONS %s\n", __FUNCTION__);
+	}
+
+	/* Return drvopts without sdi (and devopts with sdi, see below). */
+	if (key == SR_CONF_DEVICE_OPTIONS && !sdi) {
 		*data = g_variant_new_fixed_array(G_VARIANT_TYPE_UINT32,
-			devopts, ARRAY_SIZE(devopts), sizeof(uint32_t));
+				drvopts, ARRAY_SIZE(drvopts), sizeof(uint32_t));
 		return SR_OK;
+	}
+
+	/* Every other key needs an sdi. */
+	if (!sdi)
+		return SR_ERR_ARG;
+	devc = sdi->priv;
+
+	switch (key) {
+	case SR_CONF_DEVICE_OPTIONS:
+		*data = g_variant_new_fixed_array(G_VARIANT_TYPE_UINT32,
+				devopts, ARRAY_SIZE(devopts), sizeof(uint32_t));
+		break;
+	case SR_CONF_VOLTAGE_TARGET:
+		g_variant_builder_init(&gvb, G_VARIANT_TYPE_ARRAY);
+		/* Min, max, step. */
+		for (idx = 0; idx < 3; idx++) {
+			if (idx == 1)
+				dval = devc->voltage_max_device;
+			else
+				dval = devc->model->voltage[idx];
+			gvar = g_variant_new_double(dval);
+			g_variant_builder_add_value(&gvb, gvar);
+		}
+		*data = g_variant_builder_end(&gvb);
+		break;
+	case SR_CONF_CURRENT_LIMIT:
+		g_variant_builder_init(&gvb, G_VARIANT_TYPE_ARRAY);
+		/* Min, max, step. */
+		for (idx = 0; idx < 3; idx++) {
+			if (idx == 1)
+				dval = devc->current_max_device;
+			else
+				dval = devc->model->current[idx];
+			gvar = g_variant_new_double(dval);
+			g_variant_builder_add_value(&gvb, gvar);
+		}
+		*data = g_variant_builder_end(&gvb);
+		break;
 	default:
 		return SR_ERR_NA;
 	}
@@ -323,7 +361,7 @@ static int dev_acquisition_stop(struct sr_dev_inst *sdi, void *cb_data)
 
 SR_PRIV struct sr_dev_driver gwinstek_pps_psp_driver_info = {
 	.name = "gwinstek-pps-psp",
-	.longname = "gwinstek-pps-psp",
+	.longname = "GW Instek Power Supplies PSP-xxx",
 	.api_version = 1,
 	.init = init,
 	.cleanup = cleanup,
@@ -333,8 +371,8 @@ SR_PRIV struct sr_dev_driver gwinstek_pps_psp_driver_info = {
 	.config_get = config_get,
 	.config_set = config_set,
 	.config_list = config_list,
-	.dev_open = dev_open,
-	.dev_close = dev_close,
+	.dev_open = std_serial_dev_open,
+	.dev_close = std_serial_dev_close,
 	.dev_acquisition_start = dev_acquisition_start,
 	.dev_acquisition_stop = dev_acquisition_stop,
 	.context = NULL,

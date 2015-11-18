@@ -20,7 +20,7 @@
 #include <config.h>
 #include "protocol.h"
 
-#define REQ_TIMEOUT_MS 500
+#define REQ_TIMEOUT_MS 800
 
 SR_PRIV int gw_instek_psp_send_cmd(struct sr_serial_dev_inst *serial, const char *cmd, ...)
 {
@@ -76,7 +76,7 @@ SR_PRIV int gw_instek_psp_read_reply(struct sr_serial_dev_inst *serial, int line
 	}
 	buf[bufpos] = '\0';
 
-	if ((l_recv == lines) && (g_str_has_suffix(buf, "\r\r\n")))
+	if ((l_recv == lines) && (g_str_has_suffix(buf, "\r")))
 		return SR_OK;
 	else
 		return SR_ERR;
