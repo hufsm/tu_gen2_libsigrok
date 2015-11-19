@@ -28,6 +28,7 @@ SR_PRIV int gw_instek_psp_send_cmd(struct sr_serial_dev_inst *serial, const char
 	char cmdbuf[50];
 	char *cmd_esc;
 	va_list args;
+  sr_dbg( "%s", __FUNCTION__);
 
 	va_start(args, cmd);
 	vsnprintf(cmdbuf, sizeof(cmdbuf), cmd, args);
@@ -62,6 +63,7 @@ SR_PRIV int gw_instek_psp_read_reply(struct sr_serial_dev_inst *serial, int line
 	int l_recv = 0;
 	int bufpos = 0;
 	int retc;
+  sr_dbg( "%s", __FUNCTION__);
 
 	if (!serial || (lines <= 0) || !buf || (buflen <= 0))
 		return SR_ERR_ARG;
@@ -76,6 +78,7 @@ SR_PRIV int gw_instek_psp_read_reply(struct sr_serial_dev_inst *serial, int line
 	}
 	buf[bufpos] = '\0';
 
+	sr_dbg("got: '%s'.", buf);
 	if ((l_recv == lines) && (g_str_has_suffix(buf, "\r")))
 		return SR_OK;
 	else
@@ -90,6 +93,7 @@ SR_PRIV int gw_instek_psp_parse_volt_curr_mode(struct sr_dev_inst *sdi, char **t
 	char *str;
 	double val;
 	struct dev_context *devc;
+  sr_dbg( "%s", __FUNCTION__);
 
 	devc = sdi->priv;
 
@@ -119,6 +123,9 @@ static void send_sample(struct sr_dev_inst *sdi)
 	struct dev_context *devc;
 	struct sr_datafeed_packet packet;
 	struct sr_datafeed_analog_old analog;
+  sr_dbg( "%s", __FUNCTION__);
+
+	sr_dbg("Entering test\n");
 
 	devc = sdi->priv;
 
@@ -147,6 +154,7 @@ static int parse_reply(struct sr_dev_inst *sdi)
 	struct dev_context *devc;
 	char *reply_esc, **tokens;
 	int retc;
+  sr_dbg( "%s", __FUNCTION__);
 
 	devc = sdi->priv;
 
@@ -160,6 +168,7 @@ static int parse_reply(struct sr_dev_inst *sdi)
 	if (retc < 0)
 		return SR_ERR;
 
+  //sr_dbg("Test1\n");
 	send_sample(sdi);
 
 	return SR_OK;
@@ -170,6 +179,7 @@ static int handle_new_data(struct sr_dev_inst *sdi)
 	int len;
 	struct dev_context *devc;
 	struct sr_serial_dev_inst *serial;
+  sr_dbg( "%s", __FUNCTION__);
 
 	devc = sdi->priv;
 	serial = sdi->conn;
@@ -181,10 +191,15 @@ static int handle_new_data(struct sr_dev_inst *sdi)
 	devc->buflen += len;
 	devc->buf[devc->buflen] = '\0';
 
+  sr_dbg( "Read from device: '%s'", devc->buf);
 	/* Wait until we received an "OK\r" (among other bytes). */
-	if (!g_str_has_suffix(devc->buf, "OK\r"))
-		return SR_OK;
+	if (!g_str_has_suffix(devc->buf, "\r\r\n")){
+    sr_dbg( "Suffix check -> OK");
+		
+    return SR_OK;
+  }
 
+  sr_dbg("Parse Reply");
 	parse_reply(sdi);
 
 	devc->buf[0] = '\0';
@@ -202,6 +217,7 @@ SR_PRIV int gw_instek_psp_receive_data(int fd, int revents, void *cb_data)
 	struct dev_context *devc;
 	struct sr_serial_dev_inst *serial;
 	int64_t t, elapsed_us;
+  sr_dbg( "%s", __FUNCTION__);
 
 	(void)fd;
 
