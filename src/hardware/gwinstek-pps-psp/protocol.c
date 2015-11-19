@@ -20,7 +20,7 @@
 #include <config.h>
 #include "protocol.h"
 
-#define REQ_TIMEOUT_MS 800
+#define REQ_TIMEOUT_MS 500
 
 SR_PRIV int gw_instek_psp_send_cmd(struct sr_serial_dev_inst *serial, const char *cmd, ...)
 {
@@ -231,10 +231,9 @@ static int handle_new_data(struct sr_dev_inst *sdi)
 	devc->buf[devc->buflen] = '\0';
 
   sr_dbg( "Read from device: '%s'", devc->buf);
-	/* Wait until we received an "OK\r" (among other bytes). */
+	/* Wait until we received an "\r\r\n" (among other bytes). */
 	if (!g_str_has_suffix(devc->buf, "\r\r\n")){
     sr_dbg( "Suffix check -> OK");
-		
     return SR_OK;
   }
 
