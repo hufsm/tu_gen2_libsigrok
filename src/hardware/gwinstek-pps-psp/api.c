@@ -20,8 +20,6 @@
 #include <config.h>
 #include "protocol.h"
 
-#include "stdio.h"
-
 static const uint32_t drvopts[] = {
 	/* Device class */
 	SR_CONF_POWER_SUPPLY,
@@ -35,7 +33,7 @@ static const uint32_t devopts[] = {
 	SR_CONF_LIMIT_SAMPLES | SR_CONF_GET | SR_CONF_SET,
 	SR_CONF_LIMIT_MSEC | SR_CONF_GET | SR_CONF_SET,
 	/* Device configuration */
-	SR_CONF_VOLTAGE | SR_CONF_GET,
+	SR_CONF_VOLTAGE | SR_CONF_GET | SR_CONF_SET,
 	SR_CONF_VOLTAGE_TARGET | SR_CONF_GET | SR_CONF_SET | SR_CONF_LIST,
 	SR_CONF_CURRENT | SR_CONF_GET,
 	SR_CONF_CURRENT_LIMIT | SR_CONF_GET | SR_CONF_SET | SR_CONF_LIST,
@@ -58,7 +56,7 @@ SR_PRIV struct sr_dev_driver gwinstek_pps_psp_driver_info;
 static int init(struct sr_dev_driver *di, struct sr_context *sr_ctx)
 {
   sr_dbg( "%s", __FUNCTION__);
-	return std_init(sr_ctx, di, LOG_PREFIX);
+  return std_init(sr_ctx, di, LOG_PREFIX);
 }
 
 static GSList *scan(struct sr_dev_driver *di, GSList *options)
@@ -71,6 +69,8 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	const char *conn, *serialcomm;
 	struct sr_serial_dev_inst *serial;
 	char reply[50], **tokens;
+  int ret = 0;
+  int read_reply = 0;
 
   sr_dbg( "%s", __FUNCTION__);
 
@@ -80,7 +80,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	conn = NULL;
 	serialcomm = NULL;
 	devc = NULL;
-  
+
 	sr_info("Sending ...");
 
 	for (l = options; l; l = l->next) {
@@ -106,7 +106,6 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	if (!serialcomm)
 		serialcomm = "2400/8n1";
 
-
 	serial = sr_serial_dev_inst_new(conn, serialcomm);
   sr_dbg( "conn= %s", conn);
   sr_dbg( "serialcomm= %s", serialcomm);
@@ -118,9 +117,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 	serial_flush(serial);
 
-  sr_dbg( "Probing serial port %s", conn);
 	sr_info("Probing serial port %s.", conn);
-
 
 	/* Init device instance, etc. */
 	sdi = g_malloc0(sizeof(struct sr_dev_inst));
@@ -132,27 +129,20 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	sdi->driver = di;
 
 	sr_channel_new(sdi, 0, SR_CHANNEL_ANALOG, TRUE, "CH1");
-  
+
 	devc = g_malloc0(sizeof(struct dev_context));
 	devc->model = &models[0];
 
 	sdi->priv = devc;
 
-  int ret = 0;
-  int read_reply = 0;
-  //ret = gw_instek_psp_send_cmd(serial, "SRR05.00\r");
   ret = gw_instek_psp_send_cmd(serial, "L\r");
-  //sr_dbg( "gw_instek_psp_send_cmd: %i", ret);
 
   sr_dbg( "Asking device...");
   read_reply = gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply));
 
-	/* Get current voltage, current, status, limits. */
-	//if((gw_instek_psp_send_cmd(serial, "L\r") < 0) ||
-  //  (gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply)) < 0))
-	//	goto exit_err;
   sr_dbg( "Device said:  %s", reply);
   sr_dbg( "       code:  %i", read_reply);
+
 	tokens = g_strsplit((const gchar *)&reply, "\r", 1);
 	if (gw_instek_psp_parse_volt_curr_mode(sdi, tokens) < 0) {
 		g_strfreev(tokens);
@@ -172,7 +162,6 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 exit_err:
 	sr_dev_inst_free(sdi);
 	g_free(devc);
-
 	return NULL;
 }
 
@@ -264,12 +253,18 @@ static int config_get(uint32_t key, GVariant **data,
 	return SR_OK;
 }
 
+/**
+ * This function is responsible for setting the device parameter
+ *
+ */
 static int config_set(uint32_t key, GVariant *data,
 	const struct sr_dev_inst *sdi, const struct sr_channel_group *cg)
 {
 	struct dev_context *devc;
 	gboolean bval;
 	gdouble dval;
+
+  sr_dbg( "%s", __FUNCTION__);
 
 	(void)cg;
 
@@ -284,37 +279,51 @@ static int config_set(uint32_t key, GVariant *data,
 			return SR_ERR_ARG;
 		devc->limit_msec = g_variant_get_uint64(data);
 		break;
+
 	case SR_CONF_LIMIT_SAMPLES:
 		if (g_variant_get_uint64(data) == 0)
 			return SR_ERR_ARG;
 		devc->limit_samples = g_variant_get_uint64(data);
     sr_dbg("Limit Samples: %i",devc->limit_samples);
 		break;
+
+	case SR_CONF_VOLTAGE:
+		dval = g_variant_get_double(data);
+    sr_dbg( "setting voltage (key:%i)", key);
+    sr_dbg( "                 to: %f", dval);
+    sr_dbg( "        max voltage:: %f", devc->voltage_max_device);
+
+    gw_instek_psp_send_cmd(sdi->conn, "SV %05.2f\r", dval);
+    break;
+
 	case SR_CONF_VOLTAGE_TARGET:
+    sr_dbg( "key is: %i", SR_CONF_VOLTAGE_TARGET);
 		dval = g_variant_get_double(data);
 		if (dval < devc->model->voltage[0] || dval > devc->voltage_max_device)
 			return SR_ERR_ARG;
 
 		if ((gw_instek_psp_send_cmd(sdi->conn, "SV %04.0f\r", dval) < 0) ||
-		    (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
+        (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
 			return SR_ERR;
 		devc->voltage_max = dval;
 		break;
+
 	case SR_CONF_CURRENT_LIMIT:
 		dval = g_variant_get_double(data);
 		if (dval < devc->model->current[0] || dval > devc->current_max_device)
 			return SR_ERR_ARG;
 
 		if ((gw_instek_psp_send_cmd(sdi->conn, "SI %03.0f\r", dval) < 0) ||
-		    (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
+        (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
 			return SR_ERR;
 		devc->current_max = dval;
 		break;
+
 	case SR_CONF_ENABLED:
 		bval = g_variant_get_boolean(data);
 		if (bval == devc->output_enabled) /* Nothing to do. */
 			break;
-      
+
     if (bval)
     {
       if (gw_instek_psp_send_cmd(sdi->conn, "KOE\r") < 0)
@@ -323,7 +332,7 @@ static int config_set(uint32_t key, GVariant *data,
     else
     {
       if (gw_instek_psp_send_cmd(sdi->conn, "KOD\r") < 0)
-        return SR_ERR;      
+        return SR_ERR;
     }
 		devc->output_enabled = bval;
 		break;
