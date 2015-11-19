@@ -85,8 +85,8 @@ SR_PRIV int gw_instek_psp_read_reply(struct sr_serial_dev_inst *serial, int line
 		return SR_ERR;
 }
 
-/** 
- * Interpret result of L command. 
+/**
+ * Interpret result of L command.
  * @param[in] sr_dev_inst *sdi
  *            A pointer to the device instance.
  * @param[in] char** tokens
@@ -95,7 +95,7 @@ SR_PRIV int gw_instek_psp_read_reply(struct sr_serial_dev_inst *serial, int line
  *    This function will parse the device responce and will read out the voltage and the current.
  *    The values will be returned to the given device instance in *sdi.
  *
- *    From the device we will get an answer like this: 
+ *    From the device we will get an answer like this:
  *        'Vvv.vvAa.aaaWwww.wUuuIi.iiPpppFffffff<cr><cr><lf>'
  *
  *    Somtimes there are leading '<cr>' and/ or <lf> in the string we will read from the device.
@@ -115,7 +115,7 @@ SR_PRIV int gw_instek_psp_parse_volt_curr_mode(struct sr_dev_inst *sdi, char **t
   sr_dbg( "%s", __FUNCTION__);
 
 	devc = sdi->priv;
-  
+
   // get the start of the values for voltage and current from the string
   voltage_start = g_strrstr(tokens[0], "V");
   current_start = g_strrstr(tokens[0], "A");
@@ -124,12 +124,12 @@ SR_PRIV int gw_instek_psp_parse_volt_curr_mode(struct sr_dev_inst *sdi, char **t
   voltage_str = g_strndup(voltage_start + 1, 5);
   current_str = g_strndup(current_start + 1, 5);
 
-  if( voltage_start != NULL && 
-      current_start != NULL) 
+  if( voltage_start != NULL &&
+      current_start != NULL)
   {
       sr_dbg( "voltage_start: '%s' V", voltage_str);
       sr_dbg( "current_start: '%s' A", current_str);
-  } else 
+  } else
   {
     return SR_ERR;
   }
@@ -152,7 +152,7 @@ SR_PRIV int gw_instek_psp_parse_volt_curr_mode(struct sr_dev_inst *sdi, char **t
 
 	/* Output enabled? Works because voltage cannot be set to 0.0 directly. */
 	devc->output_enabled = devc->voltage != 0.0;
-  
+
   sr_dbg( "Resuls:");
   sr_dbg( "\tvoltage: %f", devc->voltage);
   sr_dbg( "\tcurrent: %f", devc->current);
