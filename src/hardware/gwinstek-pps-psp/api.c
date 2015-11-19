@@ -57,7 +57,7 @@ SR_PRIV struct sr_dev_driver gwinstek_pps_psp_driver_info;
 
 static int init(struct sr_dev_driver *di, struct sr_context *sr_ctx)
 {
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
 	return std_init(sr_ctx, di, LOG_PREFIX);
 }
 
@@ -72,7 +72,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	struct sr_serial_dev_inst *serial;
 	char reply[50], **tokens;
 
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
 
 	drvc = di->context;
 	drvc->instances = NULL;
@@ -87,15 +87,15 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 		src = l->data;
 		switch (src->key) {
 		case SR_CONF_CONN:
-      fprintf(stdout, "Branch SR_CONF_CONN %d\n", src->key);
+      sr_dbg( "Branch SR_CONF_CONN %d", src->key);
 			conn = g_variant_get_string(src->data, NULL);
 			break;
 		case SR_CONF_SERIALCOMM:
-      fprintf(stdout, "Branch SR_CONF_SERIALCOMM %d\n", src->key);
+      sr_dbg( "Branch SR_CONF_SERIALCOMM %d", src->key);
 			serialcomm = g_variant_get_string(src->data, NULL);
 			break;
 		default:
-      fprintf(stdout, "Unknown option %d\n", src->key);
+      sr_dbg( "Unknown option %d", src->key);
 			sr_err("Unknown option %d, skipping.", src->key);
 			break;
 		}
@@ -108,17 +108,17 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 
 	serial = sr_serial_dev_inst_new(conn, serialcomm);
-  fprintf(stdout, "conn= %s\n", conn);
-  fprintf(stdout, "serialcomm= %s\n", serialcomm);
+  sr_dbg( "conn= %s", conn);
+  sr_dbg( "serialcomm= %s", serialcomm);
 
 	if (serial_open(serial, SERIAL_RDWR) != SR_OK) {
-    fprintf(stdout, "ser could not be opened\n");
+    sr_dbg( "ser could not be opened");
     return NULL;
   }
 
 	serial_flush(serial);
 
-  fprintf(stdout, "Probing serial port %s\n", conn);
+  sr_dbg( "Probing serial port %s", conn);
 	sr_info("Probing serial port %s.", conn);
 
 
@@ -131,6 +131,8 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	sdi->conn = serial;
 	sdi->driver = di;
 
+	sr_channel_new(sdi, 0, SR_CHANNEL_ANALOG, TRUE, "CH1");
+  
 	devc = g_malloc0(sizeof(struct dev_context));
 	devc->model = &models[0];
 
@@ -138,18 +140,19 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
   int ret = 0;
   int read_reply = 0;
+  //ret = gw_instek_psp_send_cmd(serial, "SRR05.00\r");
   ret = gw_instek_psp_send_cmd(serial, "L\r");
-  //fprintf(stdout, "gw_instek_psp_send_cmd: %i\n", ret);
+  //sr_dbg( "gw_instek_psp_send_cmd: %i", ret);
 
-  fprintf(stdout, "Asking device...\n");
+  sr_dbg( "Asking device...");
   read_reply = gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply));
 
 	/* Get current voltage, current, status, limits. */
 	//if((gw_instek_psp_send_cmd(serial, "L\r") < 0) ||
   //  (gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply)) < 0))
 	//	goto exit_err;
-  fprintf(stdout, "Device said:  %s\n", reply);
-  fprintf(stdout, "       code:  %i\n", read_reply);
+  sr_dbg( "Device said:  %s", reply);
+  sr_dbg( "       code:  %i", read_reply);
 	tokens = g_strsplit((const gchar *)&reply, "\r", 1);
 	if (gw_instek_psp_parse_volt_curr_mode(sdi, tokens) < 0) {
 		g_strfreev(tokens);
@@ -175,19 +178,19 @@ exit_err:
 
 static GSList *dev_list(const struct sr_dev_driver *di)
 {
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
 	return ((struct drv_context *)(di->context))->instances;
 }
 
 static int dev_clear(const struct sr_dev_driver *di)
 {
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
 	return std_dev_clear(di, NULL);
 }
 
 static int dev_open(struct sr_dev_inst *sdi)
 {
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
 	(void)sdi;
 
 	/* TODO: get handle from sdi->conn and open it. */
@@ -199,7 +202,7 @@ static int dev_open(struct sr_dev_inst *sdi)
 
 static int dev_close(struct sr_dev_inst *sdi)
 {
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
 	(void)sdi;
 
 	/* TODO: get handle from sdi->conn and close it. */
@@ -211,7 +214,7 @@ static int dev_close(struct sr_dev_inst *sdi)
 
 static int cleanup(const struct sr_dev_driver *di)
 {
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
 	dev_clear(di);
 
 	/* TODO: free other driver resources, if any. */
@@ -222,44 +225,113 @@ static int cleanup(const struct sr_dev_driver *di)
 static int config_get(uint32_t key, GVariant **data,
 	const struct sr_dev_inst *sdi, const struct sr_channel_group *cg)
 {
-	int ret;
+	struct dev_context *devc;
 
-	(void)sdi;
-	(void)data;
+  sr_dbg( "%s", __FUNCTION__);
 	(void)cg;
 
-  fprintf(stdout, "%s", __FUNCTION__);
+	if (!sdi)
+		return SR_ERR_ARG;
 
-	ret = SR_OK;
+	devc = sdi->priv;
+
 	switch (key) {
-	/* TODO */
+	case SR_CONF_LIMIT_SAMPLES:
+		*data = g_variant_new_uint64(devc->limit_samples);
+		break;
+	case SR_CONF_LIMIT_MSEC:
+		*data = g_variant_new_uint64(devc->limit_msec);
+		break;
+	case SR_CONF_VOLTAGE:
+		*data = g_variant_new_double(devc->voltage);
+		break;
+	case SR_CONF_VOLTAGE_TARGET:
+		*data = g_variant_new_double(devc->voltage_max);
+		break;
+	case SR_CONF_CURRENT:
+		*data = g_variant_new_double(devc->current);
+		break;
+	case SR_CONF_CURRENT_LIMIT:
+		*data = g_variant_new_double(devc->current_max);
+		break;
+	case SR_CONF_ENABLED:
+		*data = g_variant_new_boolean(devc->output_enabled);
+		break;
 	default:
 		return SR_ERR_NA;
 	}
 
-	return ret;
+	return SR_OK;
 }
 
 static int config_set(uint32_t key, GVariant *data,
 	const struct sr_dev_inst *sdi, const struct sr_channel_group *cg)
 {
-	int ret;
-  fprintf(stdout, "%s", __FUNCTION__);
+	struct dev_context *devc;
+	gboolean bval;
+	gdouble dval;
 
-	(void)data;
 	(void)cg;
 
 	if (sdi->status != SR_ST_ACTIVE)
 		return SR_ERR_DEV_CLOSED;
 
-	ret = SR_OK;
+	devc = sdi->priv;
+
 	switch (key) {
-	/* TODO */
+	case SR_CONF_LIMIT_MSEC:
+		if (g_variant_get_uint64(data) == 0)
+			return SR_ERR_ARG;
+		devc->limit_msec = g_variant_get_uint64(data);
+		break;
+	case SR_CONF_LIMIT_SAMPLES:
+		if (g_variant_get_uint64(data) == 0)
+			return SR_ERR_ARG;
+		devc->limit_samples = g_variant_get_uint64(data);
+    sr_dbg("Limit Samples: %i",devc->limit_samples);
+		break;
+	case SR_CONF_VOLTAGE_TARGET:
+		dval = g_variant_get_double(data);
+		if (dval < devc->model->voltage[0] || dval > devc->voltage_max_device)
+			return SR_ERR_ARG;
+
+		if ((gw_instek_psp_send_cmd(sdi->conn, "SV %04.0f\r", dval) < 0) ||
+		    (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
+			return SR_ERR;
+		devc->voltage_max = dval;
+		break;
+	case SR_CONF_CURRENT_LIMIT:
+		dval = g_variant_get_double(data);
+		if (dval < devc->model->current[0] || dval > devc->current_max_device)
+			return SR_ERR_ARG;
+
+		if ((gw_instek_psp_send_cmd(sdi->conn, "SI %03.0f\r", dval) < 0) ||
+		    (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
+			return SR_ERR;
+		devc->current_max = dval;
+		break;
+	case SR_CONF_ENABLED:
+		bval = g_variant_get_boolean(data);
+		if (bval == devc->output_enabled) /* Nothing to do. */
+			break;
+      
+    if (bval)
+    {
+      if (gw_instek_psp_send_cmd(sdi->conn, "KOE\r") < 0)
+        return SR_ERR;
+    }
+    else
+    {
+      if (gw_instek_psp_send_cmd(sdi->conn, "KOD\r") < 0)
+        return SR_ERR;      
+    }
+		devc->output_enabled = bval;
+		break;
 	default:
-		ret = SR_ERR_NA;
+		return SR_ERR_NA;
 	}
 
-	return ret;
+	return SR_OK;
 }
 
 static int config_list(uint32_t key, GVariant **data,
@@ -271,11 +343,14 @@ static int config_list(uint32_t key, GVariant **data,
 	double dval;
 	int idx;
 
-  fprintf(stdout, "%s\n", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
+  sr_dbg( "with key: %i", key);
+
 	(void)cg;
 
 	/* Always available (with or without sdi). */
 	if (key == SR_CONF_SCAN_OPTIONS) {
+    sr_dbg( "%s SR_CONF_SCAN_OPTIONS", __FUNCTION__);
 		*data = g_variant_new_fixed_array(G_VARIANT_TYPE_UINT32,
 			scanopts, ARRAY_SIZE(scanopts), sizeof(uint32_t));
 		return SR_OK;
@@ -283,6 +358,7 @@ static int config_list(uint32_t key, GVariant **data,
 
 	/* Return drvopts without sdi (and devopts with sdi, see below). */
 	if (key == SR_CONF_DEVICE_OPTIONS && !sdi) {
+    sr_dbg( "%s SR_CONF_DEVICE_OPTIONS", __FUNCTION__);
 		*data = g_variant_new_fixed_array(G_VARIANT_TYPE_UINT32,
 				drvopts, ARRAY_SIZE(drvopts), sizeof(uint32_t));
 		return SR_OK;
@@ -294,38 +370,41 @@ static int config_list(uint32_t key, GVariant **data,
 	devc = sdi->priv;
 
 	switch (key) {
-	case SR_CONF_DEVICE_OPTIONS:
-		*data = g_variant_new_fixed_array(G_VARIANT_TYPE_UINT32,
-				devopts, ARRAY_SIZE(devopts), sizeof(uint32_t));
-		break;
-	case SR_CONF_VOLTAGE_TARGET:
-		g_variant_builder_init(&gvb, G_VARIANT_TYPE_ARRAY);
-		/* Min, max, step. */
-		for (idx = 0; idx < 3; idx++) {
-			if (idx == 1)
-				dval = devc->voltage_max_device;
-			else
-				dval = devc->model->voltage[idx];
-			gvar = g_variant_new_double(dval);
-			g_variant_builder_add_value(&gvb, gvar);
-		}
-		*data = g_variant_builder_end(&gvb);
-		break;
-	case SR_CONF_CURRENT_LIMIT:
-		g_variant_builder_init(&gvb, G_VARIANT_TYPE_ARRAY);
-		/* Min, max, step. */
-		for (idx = 0; idx < 3; idx++) {
-			if (idx == 1)
-				dval = devc->current_max_device;
-			else
-				dval = devc->model->current[idx];
-			gvar = g_variant_new_double(dval);
-			g_variant_builder_add_value(&gvb, gvar);
-		}
-		*data = g_variant_builder_end(&gvb);
-		break;
-	default:
-		return SR_ERR_NA;
+    case SR_CONF_DEVICE_OPTIONS:
+      *data = g_variant_new_fixed_array(G_VARIANT_TYPE_UINT32,
+          devopts, ARRAY_SIZE(devopts), sizeof(uint32_t));
+      break;
+
+    case SR_CONF_VOLTAGE_TARGET:
+      g_variant_builder_init(&gvb, G_VARIANT_TYPE_ARRAY);
+      /* Min, max, step. */
+      for (idx = 0; idx < 3; idx++) {
+        if (idx == 1)
+          dval = devc->voltage_max_device;
+        else
+          dval = devc->model->voltage[idx];
+        gvar = g_variant_new_double(dval);
+        g_variant_builder_add_value(&gvb, gvar);
+      }
+      *data = g_variant_builder_end(&gvb);
+      break;
+
+    case SR_CONF_CURRENT_LIMIT:
+      g_variant_builder_init(&gvb, G_VARIANT_TYPE_ARRAY);
+      /* Min, max, step. */
+      for (idx = 0; idx < 3; idx++) {
+        if (idx == 1)
+          dval = devc->current_max_device;
+        else
+          dval = devc->model->current[idx];
+        gvar = g_variant_new_double(dval);
+        g_variant_builder_add_value(&gvb, gvar);
+      }
+      *data = g_variant_builder_end(&gvb);
+      break;
+
+    default:
+      return SR_ERR_NA;
 	}
 
 	return SR_OK;
@@ -333,30 +412,37 @@ static int config_list(uint32_t key, GVariant **data,
 
 static int dev_acquisition_start(const struct sr_dev_inst *sdi, void *cb_data)
 {
-	(void)sdi;
-	(void)cb_data;
+	struct dev_context *devc;
+	struct sr_serial_dev_inst *serial;
 
-  fprintf(stdout, "%s", __FUNCTION__);
+  sr_dbg( "%s", __FUNCTION__);
+
 	if (sdi->status != SR_ST_ACTIVE)
 		return SR_ERR_DEV_CLOSED;
 
-	/* TODO: configure hardware, reset acquisition state, set up
-	 * callbacks and send header packet. */
+	devc = sdi->priv;
+	devc->cb_data = cb_data;
+
+	/* Send header packet to the session bus. */
+	std_session_send_df_header(cb_data, LOG_PREFIX);
+
+	devc->starttime = g_get_monotonic_time();
+	devc->num_samples = 0;
+	devc->reply_pending = FALSE;
+	devc->req_sent_at = 0;
+
+	/* Poll every 100ms, or whenever some data comes in. */
+	serial = sdi->conn;
+	serial_source_add(sdi->session, serial, G_IO_IN, 100,
+			gw_instek_psp_receive_data, (void *)sdi);
 
 	return SR_OK;
 }
 
 static int dev_acquisition_stop(struct sr_dev_inst *sdi, void *cb_data)
 {
-	(void)cb_data;
-  fprintf(stdout, "%s", __FUNCTION__);
-
-	if (sdi->status != SR_ST_ACTIVE)
-		return SR_ERR_DEV_CLOSED;
-
-	/* TODO: stop acquisition. */
-
-	return SR_OK;
+	return std_serial_dev_acquisition_stop(sdi, cb_data,
+			std_serial_dev_close, sdi->conn, LOG_PREFIX);
 }
 
 SR_PRIV struct sr_dev_driver gwinstek_pps_psp_driver_info = {
