@@ -265,6 +265,7 @@ static int config_set(uint32_t key, GVariant *data,
 	gdouble dval;
 
   sr_dbg( "%s", __FUNCTION__);
+  sr_dbg( "key: %i", key);
 
 	(void)cg;
 
@@ -288,24 +289,18 @@ static int config_set(uint32_t key, GVariant *data,
 		break;
 
 	case SR_CONF_VOLTAGE:
-		dval = g_variant_get_double(data);
-    sr_dbg( "setting voltage (key:%i)", key);
-    sr_dbg( "                 to: %f", dval);
-    sr_dbg( "        max voltage:: %f", devc->voltage_max_device);
-
-    gw_instek_psp_send_cmd(sdi->conn, "SV %05.2f\r", dval);
     break;
 
 	case SR_CONF_VOLTAGE_TARGET:
-    sr_dbg( "key is: %i", SR_CONF_VOLTAGE_TARGET);
 		dval = g_variant_get_double(data);
-		if (dval < devc->model->voltage[0] || dval > devc->voltage_max_device)
-			return SR_ERR_ARG;
+    sr_dbg( "setting voltage (key:%i)", key);
+    sr_dbg( "                 to: %f", dval);
+    sr_dbg( "        max voltage:: %f", devc->voltage_max);
 
-		if ((gw_instek_psp_send_cmd(sdi->conn, "SV %04.0f\r", dval) < 0) ||
-        (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
-			return SR_ERR;
+    gw_instek_psp_send_cmd(sdi->conn, "SV %05.2f\r", dval);
 		devc->voltage_max = dval;
+
+    sr_dbg( "        max voltage:: %f", devc->voltage_max);
 		break;
 
 	case SR_CONF_CURRENT_LIMIT:
