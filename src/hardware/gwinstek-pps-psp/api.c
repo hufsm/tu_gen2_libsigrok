@@ -305,12 +305,20 @@ static int config_set(uint32_t key, GVariant *data,
 
 	case SR_CONF_CURRENT_LIMIT:
 		dval = g_variant_get_double(data);
-		if (dval < devc->model->current[0] || dval > devc->current_max_device)
-			return SR_ERR_ARG;
+    sr_dbg( "setting current_limit (key:%i)", key);
+    sr_dbg( "                 to: %f", dval);
+    sr_dbg( "        max current: %f", devc->current_max);
 
-		if ((gw_instek_psp_send_cmd(sdi->conn, "SI %03.0f\r", dval) < 0) ||
-        (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
-			return SR_ERR;
+    gw_instek_psp_send_cmd(sdi->conn, "SI %4.2f\r", dval);
+    
+    sr_dbg( "current %i", devc->model->current[0] ) ;
+    sr_dbg( "max device %f", devc->current_max_device );
+//		if (dval < devc->model->current[0] || dval > devc->current_max_device)
+//			return SR_ERR_ARG;
+//
+//		if ((gw_instek_psp_send_cmd(sdi->conn, "SI %05.2f\r", dval) < 0) ||
+//        (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
+//			return SR_ERR;
 		devc->current_max = dval;
 		break;
 
@@ -380,6 +388,7 @@ static int config_list(uint32_t key, GVariant **data,
       break;
 
     case SR_CONF_VOLTAGE_TARGET:
+      sr_dbg("SR_CONF_VOLTAGE_TARGET");
       g_variant_builder_init(&gvb, G_VARIANT_TYPE_ARRAY);
       /* Min, max, step. */
       for (idx = 0; idx < 3; idx++) {
