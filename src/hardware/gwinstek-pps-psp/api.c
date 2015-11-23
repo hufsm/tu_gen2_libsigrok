@@ -38,6 +38,7 @@ static const uint32_t devopts[] = {
 	SR_CONF_CURRENT | SR_CONF_GET,
 	SR_CONF_CURRENT_LIMIT | SR_CONF_GET | SR_CONF_SET | SR_CONF_LIST,
 	SR_CONF_ENABLED | SR_CONF_GET | SR_CONF_SET,
+	SR_CONF_VOLTAGE_LIMIT | SR_CONF_GET | SR_CONF_SET,
 };
 
 static const uint32_t scanopts[] = {
@@ -61,6 +62,7 @@ static int init(struct sr_dev_driver *di, struct sr_context *sr_ctx)
 
 static GSList *scan(struct sr_dev_driver *di, GSList *options)
 {
+  //sr_key_info_name_get
 	struct drv_context *drvc;
 	struct dev_context *devc;
 	struct sr_dev_inst *sdi;
@@ -313,14 +315,18 @@ static int config_set(uint32_t key, GVariant *data,
     
     sr_dbg( "current %i", devc->model->current[0] ) ;
     sr_dbg( "max device %f", devc->current_max_device );
-//		if (dval < devc->model->current[0] || dval > devc->current_max_device)
-//			return SR_ERR_ARG;
-//
-//		if ((gw_instek_psp_send_cmd(sdi->conn, "SI %05.2f\r", dval) < 0) ||
-//        (gw_instek_psp_read_reply(sdi->conn, 1, devc->buf, sizeof(devc->buf)) < 0))
-//			return SR_ERR;
 		devc->current_max = dval;
 		break;
+
+	case SR_CONF_VOLTAGE_LIMIT:
+		dval = g_variant_get_double(data);
+    sr_dbg( "setting current_limit (key:%i)", key);
+    sr_dbg( "                 to: %f", dval);
+    sr_dbg( "        max current: %f", devc->current_max);
+
+    gw_instek_psp_send_cmd(sdi->conn, "SU %02i\r", (int)dval);
+    
+    break;
 
 	case SR_CONF_ENABLED:
 		bval = g_variant_get_boolean(data);
