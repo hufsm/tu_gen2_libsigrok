@@ -171,7 +171,7 @@ static struct sr_key_info sr_key_info_config[] = {
 		"Equivalent circuit model", NULL},
 	{SR_CONF_OVER_TEMPERATURE_PROTECTION_ACTIVE, SR_T_BOOL, "otp_active",
 		"Over-temperature protection active", NULL},
-	{SR_CONF_CURRENT_LIMIT, SR_T_FLOAT, "voltage_limit",
+	{SR_CONF_VOLTAGE_LIMIT, SR_T_FLOAT, "voltage_limit",
 		"Voltage limit", NULL},
 
 	/* Special stuff */
