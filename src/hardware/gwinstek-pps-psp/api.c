@@ -71,7 +71,6 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 	const char *conn, *serialcomm;
 	struct sr_serial_dev_inst *serial;
 	char reply[50], **tokens;
-  int ret = 0;
   int read_reply = 0;
 
   sr_dbg( "%s", __FUNCTION__);
@@ -137,7 +136,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 	sdi->priv = devc;
 
-  ret = gw_instek_psp_send_cmd(serial, "L\r");
+  gw_instek_psp_send_cmd(serial, "L\r");
 
   sr_dbg( "Asking device...");
   read_reply = gw_instek_psp_read_reply(serial, 1, reply, sizeof(reply));
@@ -287,7 +286,6 @@ static int config_set(uint32_t key, GVariant *data,
 		if (g_variant_get_uint64(data) == 0)
 			return SR_ERR_ARG;
 		devc->limit_samples = g_variant_get_uint64(data);
-    sr_dbg("Limit Samples: %i",devc->limit_samples);
 		break;
 
 	case SR_CONF_VOLTAGE:
@@ -313,7 +311,7 @@ static int config_set(uint32_t key, GVariant *data,
 
     gw_instek_psp_send_cmd(sdi->conn, "SI %4.2f\r", dval);
     
-    sr_dbg( "current %i", devc->model->current[0] ) ;
+    sr_dbg( "current %f", devc->model->current[0] ) ;
     sr_dbg( "max device %f", devc->current_max_device );
 		devc->current_max = dval;
 		break;
