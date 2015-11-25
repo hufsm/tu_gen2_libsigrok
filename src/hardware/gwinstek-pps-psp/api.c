@@ -39,6 +39,8 @@ static const uint32_t devopts[] = {
 	SR_CONF_CURRENT_LIMIT | SR_CONF_GET | SR_CONF_SET | SR_CONF_LIST,
 	SR_CONF_ENABLED | SR_CONF_GET | SR_CONF_SET,
 	SR_CONF_VOLTAGE_LIMIT | SR_CONF_GET | SR_CONF_SET,
+	SR_CONF_RELAY_STATUS | SR_CONF_SET,
+	SR_CONF_EEPROM | SR_CONF_SET,
 };
 
 static const uint32_t scanopts[] = {
@@ -310,7 +312,7 @@ static int config_set(uint32_t key, GVariant *data,
     sr_dbg( "        max current: %f", devc->current_max);
 
     gw_instek_psp_send_cmd(sdi->conn, "SI %4.2f\r", dval);
-    
+
     sr_dbg( "current %f", devc->model->current[0] ) ;
     sr_dbg( "max device %f", devc->current_max_device );
 		devc->current_max = dval;
@@ -318,13 +320,37 @@ static int config_set(uint32_t key, GVariant *data,
 
 	case SR_CONF_VOLTAGE_LIMIT:
 		dval = g_variant_get_double(data);
-    sr_dbg( "setting current_limit (key:%i)", key);
+    sr_dbg( "setting voltage_limit  (key:%i)", key);
     sr_dbg( "                 to: %f", dval);
     sr_dbg( "        max current: %f", devc->current_max);
 
     gw_instek_psp_send_cmd(sdi->conn, "SU %02i\r", (int)dval);
-    
     break;
+
+	case SR_CONF_RELAY_STATUS:
+		bval = g_variant_get_boolean(data);
+    sr_dbg( "setting relay status (key:%i)", key);
+    sr_dbg( "                 to: %s", bval ? "TRUE" : "FALSE");
+
+    if( bval )
+    {
+      gw_instek_psp_send_cmd(sdi->conn, "KOE\r", (int)dval);
+
+    } else {
+      gw_instek_psp_send_cmd(sdi->conn, "KOD\r", (int)dval);
+    }
+    break;
+
+  case SR_CONF_EEPROM:
+      bval = g_variant_get_boolean(data);
+      sr_dbg( "writing eeprom (key:%i)", key);
+      sr_dbg( "                 to: %s", bval ? "TRUE" : "FALSE");
+
+      if( bval )
+      {
+        gw_instek_psp_send_cmd(sdi->conn, "EEP\r", (int)dval);
+      }
+      break;
 
 	case SR_CONF_ENABLED:
 		bval = g_variant_get_boolean(data);
