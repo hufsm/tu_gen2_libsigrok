@@ -227,14 +227,23 @@ static int handle_new_data(struct sr_dev_inst *sdi)
 	if (len < 1)
 		return SR_ERR;
 
+  /* Sync with the true reply;
+   * there schould be no leading
+   * characters in the buffer
+   */
+  if (devc->buf[0]=='\r') {
+    return SR_OK;
+  }
+
 	devc->buflen += len;
 	devc->buf[devc->buflen] = '\0';
 
   sr_dbg( "Read from device: '%s'", devc->buf);
 	/* Wait until we received an "\r\r\n" (among other bytes). */
 	if (!g_str_has_suffix(devc->buf, "\r\r\n")){
-    sr_dbg( "Suffix check -> OK");
     return SR_OK;
+  } else {
+    sr_dbg( "Suffix check -> OK");
   }
 
   sr_dbg("Parse Reply");
