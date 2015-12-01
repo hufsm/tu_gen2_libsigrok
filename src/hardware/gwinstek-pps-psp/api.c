@@ -180,30 +180,6 @@ static int dev_clear(const struct sr_dev_driver *di)
 	return std_dev_clear(di, NULL);
 }
 
-static int dev_open(struct sr_dev_inst *sdi)
-{
-  sr_dbg( "%s", __FUNCTION__);
-	(void)sdi;
-
-	/* TODO: get handle from sdi->conn and open it. */
-
-	sdi->status = SR_ST_ACTIVE;
-
-	return SR_OK;
-}
-
-static int dev_close(struct sr_dev_inst *sdi)
-{
-  sr_dbg( "%s", __FUNCTION__);
-	(void)sdi;
-
-	/* TODO: get handle from sdi->conn and close it. */
-
-	sdi->status = SR_ST_INACTIVE;
-
-	return SR_OK;
-}
-
 static int cleanup(const struct sr_dev_driver *di)
 {
   sr_dbg( "%s", __FUNCTION__);
@@ -264,8 +240,8 @@ static int config_set(uint32_t key, GVariant *data,
 	const struct sr_dev_inst *sdi, const struct sr_channel_group *cg)
 {
 	struct dev_context *devc;
-	gboolean bval;
-	gdouble dval;
+	gboolean bval=FALSE;
+	gdouble dval=0.0;
 
   sr_dbg( "%s", __FUNCTION__);
   sr_dbg( "key: %i", key);
@@ -334,10 +310,9 @@ static int config_set(uint32_t key, GVariant *data,
 
     if( bval )
     {
-      gw_instek_psp_send_cmd(sdi->conn, "KOE\r", (int)dval);
-
+      gw_instek_psp_send_cmd(sdi->conn, "KOE\r");
     } else {
-      gw_instek_psp_send_cmd(sdi->conn, "KOD\r", (int)dval);
+      gw_instek_psp_send_cmd(sdi->conn, "KOD\r");
     }
     break;
 
