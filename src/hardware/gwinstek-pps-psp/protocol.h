@@ -29,6 +29,9 @@
 
 #define LOG_PREFIX "gwinstek-psp"
 
+#define EXPECTED_VOLTAGE_CURRENT_MSG_LEN 18
+#define SEND_COMMAND_TIMEOUT_US 120000
+
 enum {
 	GW_INSTEK_PPS_PSP,
 };
@@ -73,5 +76,6 @@ SR_PRIV int gw_instek_psp_parse_volt_curr_mode(struct sr_dev_inst *sdi, char **t
 SR_PRIV int gw_instek_psp_read_reply(struct sr_serial_dev_inst *serial, int lines, char *buf, int buflen);
 SR_PRIV int gw_instek_psp_send_cmd(struct sr_serial_dev_inst *serial, const char *cmd, ...);
 SR_PRIV int gw_instek_psp_receive_data(int fd, int revents, void *cb_data);
+SR_PRIV void gw_instek_psp_timeout(int);
 
 #endif

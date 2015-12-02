@@ -146,13 +146,6 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
   sr_dbg( "Device said:  %s", reply);
   sr_dbg( "       code:  %i", read_reply);
 
-	tokens = g_strsplit((const gchar *)&reply, "\r", 1);
-	if (gw_instek_psp_parse_volt_curr_mode(sdi, tokens) < 0) {
-		g_strfreev(tokens);
-		goto exit_err;
-	}
-	g_strfreev(tokens);
-
 	drvc->instances = g_slist_append(drvc->instances, sdi);
 	devices = g_slist_append(devices, sdi);
 

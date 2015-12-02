@@ -87,16 +87,23 @@ SR_PRIV int gw_instek_psp_read_reply(struct sr_serial_dev_inst *serial, int line
 
 /**
  * Interpret result of L command.
+ *
  * @param[in] sr_dev_inst *sdi
- *            A pointer to the device instance.
+ *            A pointer to the device instance
  * @param[in] char** tokens
  *            The tokens from the response as two dimensional array
  * @brief:
- *    This function will parse the device responce and will read out the voltage and the current.
+ *    This function will parse the device responce and will read out the values for voltage and current.
  *    The values will be returned to the given device instance in *sdi.
  *
  *    From the device we will get an answer like this:
- *        'Vvv.vvAa.aaaWwww.wUuuIi.iiPpppFffffff<cr><cr><lf>'
+ *        'Vvv.vv<cr><cr><lf>
+ *        Aa.aaa<cr><cr><lf>'
+ *
+ *    This function should get called after the use of parse_reply(). That leads to a slightly nicer
+ *    format for the values, that should look like this:
+ *        tokens[0] = "Vvv.vv"
+ *        tokens[1] = "Aa.aaa"
  *
  *    Somtimes there are leading '<cr>' and/ or <lf> in the string we will read from the device.
  *    Those are handled accordingly.
@@ -118,7 +125,7 @@ SR_PRIV int gw_instek_psp_parse_volt_curr_mode(struct sr_dev_inst *sdi, char **t
 
   // get the start of the values for voltage and current from the string
   voltage_start = g_strrstr(tokens[0], "V");
-  current_start = g_strrstr(tokens[0], "A");
+  current_start = g_strrstr(tokens[1], "A");
 
   // construct a new string for temporary use
   voltage_str = g_strndup(voltage_start + 1, 5);
@@ -202,7 +209,13 @@ static int parse_reply(struct sr_dev_inst *sdi)
 	sr_dbg("Received '%s'.", reply_esc);
 	g_free(reply_esc);
 
-	tokens = g_strsplit(devc->buf, "\r", 0);
+  /*
+   * Split right after the end sequence of each command. 
+   * This will leave us with the strings containing the 
+   * values for voltage and current.
+   */
+	tokens = g_strsplit(devc->buf, "\r\r\n", 0);
+
 	retc = gw_instek_psp_parse_volt_curr_mode(sdi, tokens);
 	g_strfreev(tokens);
 	if (retc < 0)
@@ -216,6 +229,7 @@ static int parse_reply(struct sr_dev_inst *sdi)
 static int handle_new_data(struct sr_dev_inst *sdi)
 {
 	int len;
+	int expected_len = EXPECTED_VOLTAGE_CURRENT_MSG_LEN;
 	struct dev_context *devc;
 	struct sr_serial_dev_inst *serial;
   sr_dbg( "%s", __FUNCTION__);
@@ -223,30 +237,40 @@ static int handle_new_data(struct sr_dev_inst *sdi)
 	devc = sdi->priv;
 	serial = sdi->conn;
 
-	len = serial_read_blocking(serial, devc->buf + devc->buflen, 1, 0);
-	if (len < 1)
-		return SR_ERR;
+  len = serial_read_blocking(serial, devc->buf + devc->buflen, 1, 0);
+  if (len < 1)
+    return SR_ERR;
+
+  sr_dbg( "len is: '%i'", len);
 
   /* Sync with the true reply;
-   * there schould be no leading
-   * characters in the buffer
-   */
-  if (devc->buf[0]=='\r') {
+  * there schould be no leading
+  * characters in the buffer
+  */
+  if (devc->buf[0]=='\r'
+      || devc->buf[0]=='\n') {
     return SR_OK;
   }
 
-	devc->buflen += len;
-	devc->buf[devc->buflen] = '\0';
+  devc->buflen += len;
+  devc->buf[devc->buflen] = '\0';
 
   sr_dbg( "Read from device: '%s'", devc->buf);
-	/* Wait until we received an "\r\r\n" (among other bytes). */
-	if (!g_str_has_suffix(devc->buf, "\r\r\n")){
-    return SR_OK;
-  } else {
-    sr_dbg( "Suffix check -> OK");
-  }
+  sr_dbg( "Read from device: '%i'", devc->buflen);
 
-  sr_dbg("Parse Reply");
+  /* We expect two answers: 
+   * 1. The output voltage of the device
+   * 2. The current of the Device
+   * The voltage is Identified by a leading character 'V'.
+   * Current values have a leading 'A'. So we want to check for this values.
+   */
+  if ( !g_strrstr(devc->buf, "V"))
+    return SR_OK;
+  if ( !g_strrstr(devc->buf, "A"))
+    return SR_OK;
+  if ( devc->buflen < expected_len )
+    return SR_OK;
+
 	parse_reply(sdi);
 
 	devc->buf[0] = '\0';
@@ -255,6 +279,24 @@ static int handle_new_data(struct sr_dev_inst *sdi)
 	devc->reply_pending = FALSE;
 
 	return SR_OK;
+}
+
+/**
+ * This function will generate a timeout, basically it will loop until the
+ * timer elapses, which means that the given time in @see time has passed.
+ *
+ * @param[in] time: The time to wait in us
+ *
+ */
+SR_PRIV void  gw_instek_psp_timeout(int time)
+{
+  int64_t s_0 = g_get_monotonic_time();
+  int64_t s_1 = g_get_monotonic_time();
+  int s_delta = 0;
+  while( s_delta < time ) {
+    s_1 = g_get_monotonic_time();
+    s_delta = s_1 - s_0;
+  }
 }
 
 /** Driver/serial data reception function. */
@@ -307,9 +349,19 @@ SR_PRIV int gw_instek_psp_receive_data(int fd, int revents, void *cb_data)
 			return TRUE;
 		}
 
-		/* Send command to get voltage, current, and mode. */
-		if (gw_instek_psp_send_cmd(serial, "L\r") < 0)
-			return TRUE;
+		/* Send commands to get voltage, current.
+     * To safe time, we send two commands instead 
+     * of just one which should be 'L'.
+     * Because the device needs some time to respond, 
+     * there is a timeout used.
+     */
+		if (gw_instek_psp_send_cmd(serial, "V\r") < 0)
+      return TRUE;
+
+    gw_instek_psp_timeout(SEND_COMMAND_TIMEOUT_US);
+
+    if (gw_instek_psp_send_cmd(serial, "A\r") < 0)
+      return TRUE;
 
 		devc->req_sent_at = g_get_monotonic_time();
 		devc->reply_pending = TRUE;
