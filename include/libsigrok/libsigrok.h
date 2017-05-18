@@ -972,6 +972,29 @@ enum sr_configkey {
 	/** Over-temperature protection (OTP) active. */
 	SR_CONF_OVER_TEMPERATURE_PROTECTION_ACTIVE,
 
+	/**
+	 * Voltage limit.
+	 * @arg type: int
+	 * @arg get: get voltage limit
+	 * @arg set: change voltage limit
+	 */
+	SR_CONF_VOLTAGE_LIMIT,
+
+	/**
+	 * Voltage limit.
+	 * @arg type: int
+	 * @arg get: get voltage limit
+	 * @arg set: change voltage limit
+	 */
+	SR_CONF_RELAY_STATUS,
+	
+  /**
+	 * Voltage limit.
+	 * @arg type: don't care
+	 * @arg get: get voltage limit
+	 */
+	SR_CONF_EEPROM,
+
 	/* Update sr_key_info_config[] (hwdriver.c) upon changes! */
 
 	/*--- Special stuff -------------------------------------------------*/

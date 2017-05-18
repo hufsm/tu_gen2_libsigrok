@@ -171,6 +171,12 @@ static struct sr_key_info sr_key_info_config[] = {
 		"Equivalent circuit model", NULL},
 	{SR_CONF_OVER_TEMPERATURE_PROTECTION_ACTIVE, SR_T_BOOL, "otp_active",
 		"Over-temperature protection active", NULL},
+	{SR_CONF_VOLTAGE_LIMIT, SR_T_FLOAT, "voltage_limit",
+		"Voltage limit", NULL},
+	{SR_CONF_RELAY_STATUS, SR_T_BOOL, "relay_status",
+		"Set Relay Status", NULL},
+	{SR_CONF_EEPROM, SR_T_BOOL, "write_eeprom",
+		"Write EEPROM", NULL},
 
 	/* Special stuff */
 	{SR_CONF_SCAN_OPTIONS, SR_T_STRING, "scan_options",

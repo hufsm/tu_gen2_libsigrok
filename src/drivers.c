@@ -81,6 +81,9 @@ extern SR_PRIV struct sr_dev_driver gmc_mh_2x_bd232_driver_info;
 #ifdef HAVE_HW_GWINSTEK_GDS_800
 extern SR_PRIV struct sr_dev_driver gwinstek_gds_800_driver_info;
 #endif
+#ifdef HAVE_HW_GWINSTEK_PPS_PSP
+extern SR_PRIV struct sr_dev_driver gwinstek_pps_psp_driver_info;
+#endif
 #ifdef HAVE_HW_HAMEG_HMO
 extern SR_PRIV struct sr_dev_driver hameg_hmo_driver_info;
 #endif
@@ -241,6 +244,9 @@ SR_PRIV struct sr_dev_driver **drivers_lists[] = {
 #endif
 #ifdef HAVE_HW_GWINSTEK_GDS_800
 	(DRVS) {&gwinstek_gds_800_driver_info, NULL},
+#endif
+#ifdef HAVE_HW_GWINSTEK_PPS_PSP
+	(DRVS) {&gwinstek_pps_psp_driver_info, NULL},
 #endif
 #ifdef HAVE_HW_HAMEG_HMO
 	(DRVS) {&hameg_hmo_driver_info, NULL},
