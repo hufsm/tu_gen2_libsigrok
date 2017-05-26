@@ -214,7 +214,7 @@ static int parse_reply(struct sr_dev_inst *sdi)
    * This will leave us with the strings containing the 
    * values for voltage and current.
    */
-	tokens = g_strsplit(devc->buf, "\r\r\n", 0);
+	tokens = g_strsplit(devc->buf, "\r\n", 0);
 
 	retc = gw_instek_psp_parse_volt_curr_mode(sdi, tokens);
 	g_strfreev(tokens);
