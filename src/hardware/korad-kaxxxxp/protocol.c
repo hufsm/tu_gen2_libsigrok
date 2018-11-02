@@ -56,7 +56,7 @@ SR_PRIV int korad_kaxxxxp_read_chars(struct sr_serial_dev_inst *serial,
 		}
 		received += ret;
 		turns++;
-	} while ((received < count) && (turns < 100));
+	} while ((received < count) && (turns < 25));
 
 	buf[count] = 0;
 
